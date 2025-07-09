@@ -25,6 +25,13 @@ const generateLoginID = (role) => {
   return role.toUpperCase() + random;
 };
 
+// ─── Helper to determine current URL ──────────────────────────────────────────
+const getAppUrl = () => {
+  return process.env.RENDER === 'true'
+    ? 'https://nfat-prep-india.onrender.com'
+    : 'http://localhost:3000';
+};
+
 // ─── Register Admin ───────────────────────────────────────────────────────────
 exports.registerAdmin = async (req, res) => {
   const { emailID, password, exam, course, role, fullName } = req.body;
@@ -45,7 +52,7 @@ exports.registerAdmin = async (req, res) => {
     });
     await newAdmin.save();
 
-    const statusLink = `http://localhost:3000/status.html?loginID=${loginID}`;
+    const statusLink = `${getAppUrl()}/status.html?loginID=${loginID}`;
 
     await transporter.sendMail({
       from: `"NPI Team" <${process.env.EMAIL_USER}>`,
@@ -167,7 +174,7 @@ exports.requestPasswordReset = async (req, res) => {
       { expiresIn: '15m' }
     );
 
-    const resetLink = `http://localhost:3000/resetPassword.html?token=${resetToken}`;
+    const resetLink = `${getAppUrl()}/resetPassword.html?token=${resetToken}`;
 
     await transporter.sendMail({
       from: `"NPI Team" <${process.env.EMAIL_USER}>`,

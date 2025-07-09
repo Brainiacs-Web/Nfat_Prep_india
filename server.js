@@ -2,6 +2,7 @@ require('dotenv').config();
 const express = require('express');
 const path = require('path');
 const connectDB = require('./config/db');
+const cors = require('cors');
 
 const adminRoutes  = require('./routes/adminRoutes');
 const courseRoutes = require('./routes/courses');
@@ -11,14 +12,21 @@ const app = express();
 connectDB();
 
 // Middleware
+app.use(cors({
+  origin: ['http://localhost:5500', 'https://nfat-prep-india.onrender.com'],
+  credentials: true
+}));
 app.use(express.json());
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 app.use(express.static(path.join(__dirname, 'public')));
 
-// Public & login routes
+// Health check route (important for Render)
+app.get('/health', (req, res) => res.send('OK'));
+
+// API routes
 app.use('/api/admin', adminRoutes);
-app.use('/api/courses', courseRoutes);       // 🔓 Public GETs handled inside routes/courses.js
-app.use('/api/batches', batchRoutes);        // 🔓 Same fix applied if needed inside batches.js
+app.use('/api/courses', courseRoutes);
+app.use('/api/batches', batchRoutes);
 
 // Dashboard fallback for SPA
 app.get('*', (req, res) => res.sendFile(path.join(__dirname, 'public', 'dashboard.html')));
@@ -30,6 +38,7 @@ app.use((err, req, res, next) => {
 });
 
 // Start server
-app.listen(process.env.PORT || 3000, () =>
-  console.log(`🚀 Server running on port ${process.env.PORT || 3000}`)
-);
+const PORT = process.env.PORT || 3000;
+app.listen(PORT, () => {
+  console.log(`🚀 Server running on port ${PORT}`);
+});

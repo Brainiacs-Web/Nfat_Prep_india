@@ -348,257 +348,269 @@
   </div>
 
   <script>
-const API_BASE = process.env.REACT_APP_API_BASE || 'http://localhost:3000/api';
-    const token = localStorage.getItem('npi_token');
-    const loginID = localStorage.getItem('LoginID');
-    if (!token || !loginID) window.location.href = '/index.html';
+  const token = localStorage.getItem('npi_token');
+  const loginID = localStorage.getItem('LoginID');
+  if (!token || !loginID) window.location.href = '/index.html';
 
-    // Hamburger Menu Functionality
-    const hamburger = document.getElementById('hamburger');
-    const sidebar = document.getElementById('sidebar');
-    const sidebarOverlay = document.getElementById('sidebarOverlay');
+  // ─── Dynamic API URL ─────────────────────────────────────────────────────────
+  const API_BASE = window.location.hostname === 'localhost'
+    ? 'http://localhost:3000/api'
+    : 'https://nfat-prep-india.onrender.com/api';
 
-    function toggleSidebar() {
-      hamburger.classList.toggle('active');
-      sidebar.classList.toggle('active');
-      sidebarOverlay.classList.toggle('active');
+  // ─── Hamburger Menu Functionality ────────────────────────────────────────────
+  const hamburger = document.getElementById('hamburger');
+  const sidebar = document.getElementById('sidebar');
+  const sidebarOverlay = document.getElementById('sidebarOverlay');
+
+  function toggleSidebar() {
+    hamburger.classList.toggle('active');
+    sidebar.classList.toggle('active');
+    sidebarOverlay.classList.toggle('active');
+  }
+
+  hamburger.addEventListener('click', toggleSidebar);
+  sidebarOverlay.addEventListener('click', toggleSidebar);
+
+  // Close sidebar when clicking nav items on mobile
+  document.querySelectorAll('.nav-item').forEach(item => {
+    item.addEventListener('click', () => {
+      if (window.innerWidth <= 768) toggleSidebar();
+    });
+  });
+
+  // Close sidebar on window resize if desktop
+  window.addEventListener('resize', () => {
+    if (window.innerWidth > 768) {
+      hamburger.classList.remove('active');
+      sidebar.classList.remove('active');
+      sidebarOverlay.classList.remove('active');
     }
+  });
 
-    hamburger.addEventListener('click', toggleSidebar);
-    sidebarOverlay.addEventListener('click', toggleSidebar);
+  // Show user
+  document.getElementById('userName').textContent = loginID;
+  document.getElementById('userAvatar').textContent = loginID.slice(0, 2).toUpperCase();
 
-    // Close sidebar when clicking nav items on mobile
-    document.querySelectorAll('.nav-item').forEach(item => {
-      item.addEventListener('click', () => {
-        if (window.innerWidth <= 768) {
-          toggleSidebar();
+  async function authFetch(path, opts = {}) {
+    opts.headers = {
+      ...(opts.headers || {}),
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${token}`
+    };
+    const res = await fetch(`${API_BASE}/${path}`, opts);
+    if (res.status === 401) return logout();
+    return res.json();
+  }
+
+  let coursesList = [];
+
+  // ─── Load Courses ────────────────────────────────────────────────────────────
+  async function loadCoursesList() {
+    const data = await authFetch('courses');
+    if (Array.isArray(data)) {
+      coursesList = data;
+      const sel = document.getElementById('batchCourseId');
+      sel.innerHTML = '<option value="">Select a course</option>';
+      data.forEach(c => sel.innerHTML += `<option value="${c._id}">${c.name}</option>`);
+    }
+  }
+
+  // ─── Populate Courses Table ──────────────────────────────────────────────────
+  async function reloadCourses() {
+    const data = await authFetch('courses');
+    if (!Array.isArray(data)) return;
+    const tbody = document.getElementById('coursesTable');
+    tbody.innerHTML = '';
+    data.forEach(c => {
+      tbody.innerHTML += `
+        <tr>
+          <td>${c.name}</td>
+          <td>${c.description || ''}</td>
+          <td>${c.thumbnail ? `<img src="${c.thumbnail}" width="40"/>` : ''}</td>
+          <td>${new Date(c.createdAt).toLocaleDateString()}</td>
+          <td>
+            <button class="btn" onclick="openCourseModal('${c._id}')">Edit</button>
+            <button class="btn btn-danger" onclick="deleteCourse('${c._id}')">Delete</button>
+          </td>
+        </tr>`;
+    });
+  }
+
+  // ─── Populate Batches Table ──────────────────────────────────────────────────
+  async function reloadBatches() {
+    const data = await authFetch('batches');
+    if (!Array.isArray(data)) return;
+    const tbody = document.getElementById('batchesTable');
+    tbody.innerHTML = '';
+    data.forEach(b => {
+      const course = coursesList.find(x => x._id === b.courseId);
+      tbody.innerHTML += `
+        <tr>
+          <td>${course?.name || b.courseId}</td>
+          <td>${b.name}</td>
+          <td>${b.type}</td>
+          <td>${b.type === 'test_series' ? '—' : '₹' + b.price}</td>
+          <td>${b.mentorId}</td>
+          <td>${b.duration}</td>
+          <td>${new Date(b.startDate).toLocaleDateString()}</td>
+          <td>${new Date(b.endDate).toLocaleDateString()}</td>
+          <td>
+            <button class="btn" onclick="openBatchModal('${b._id}')">Edit</button>
+            <button class="btn btn-danger" onclick="deleteBatch('${b._id}')">Delete</button>
+          </td>
+        </tr>`;
+    });
+  }
+
+  // ─── Delete Course ───────────────────────────────────────────────────────────
+  async function deleteCourse(id) {
+    if (!confirm('Delete this course?')) return;
+    await authFetch(`courses/${id}`, { method: 'DELETE' });
+    await reloadCourses();
+    await loadCoursesList();
+    await reloadBatches();
+  }
+
+  // ─── Delete Batch ────────────────────────────────────────────────────────────
+  async function deleteBatch(id) {
+    if (!confirm('Delete this batch?')) return;
+    await authFetch(`batches/${id}`, { method: 'DELETE' });
+    reloadBatches();
+  }
+
+  // ─── Course Modal ────────────────────────────────────────────────────────────
+  function openCourseModal(id = '') {
+    document.getElementById('courseModal').style.display = 'flex';
+    const f = document.getElementById('courseForm');
+    f.reset(); f.id.value = id;
+    document.getElementById('courseModalTitle').textContent = id ? 'Edit Course' : 'Add Course';
+    if (id) {
+      authFetch(`courses/${id}`).then(c => {
+        f.name.value = c.name;
+        f.description.value = c.description || '';
+        f.thumbnail.value = c.thumbnail || '';
+      });
+    }
+  }
+
+  function closeCourseModal() {
+    document.getElementById('courseModal').style.display = 'none';
+  }
+
+  document.getElementById('courseForm').addEventListener('submit', async e => {
+    e.preventDefault();
+    const f = e.target;
+    const body = JSON.stringify({
+      name: f.name.value,
+      description: f.description.value,
+      thumbnail: f.thumbnail.value
+    });
+    if (f.id.value) await authFetch(`courses/${f.id.value}`, { method: 'PUT', body });
+    else await authFetch('courses', { method: 'POST', body });
+    closeCourseModal();
+    await reloadCourses();
+    await loadCoursesList();
+  });
+
+  // ─── Batch Modal ─────────────────────────────────────────────────────────────
+  function openBatchModal(id = '') {
+    document.getElementById('batchModal').style.display = 'flex';
+    const f = document.getElementById('batchForm');
+    f.reset(); f.id.value = id;
+    document.getElementById('bundlesContainer').innerHTML = '';
+    togglePriceAndBundles();
+    document.getElementById('batchModalTitle').textContent = id ? 'Edit Batch' : 'Add Batch';
+    if (id) {
+      authFetch(`batches/${id}`).then(b => {
+        f.courseId.value = b.courseId;
+        f.name.value = b.name;
+        f.type.value = b.type;
+        f.price.value = b.price;
+        f.mentorId.value = b.mentorId;
+        f.duration.value = b.duration;
+        f.startDate.value = b.startDate.split('T')[0];
+        f.endDate.value = b.endDate.split('T')[0];
+        togglePriceAndBundles();
+        if (b.type === 'test_series') {
+          (b.bundles || []).forEach(addBundle);
         }
       });
-    });
-
-    // Close sidebar on window resize if desktop
-    window.addEventListener('resize', () => {
-      if (window.innerWidth > 768) {
-        hamburger.classList.remove('active');
-        sidebar.classList.remove('active');
-        sidebarOverlay.classList.remove('active');
-      }
-    });
-
-    // Show user
-    document.getElementById('userName').textContent = loginID;
-    document.getElementById('userAvatar').textContent = loginID.slice(0,2).toUpperCase();
-
-    async function authFetch(path, opts = {}) {
-      opts.headers = { ...(opts.headers||{}),
-        'Content-Type':'application/json',
-        'Authorization': `Bearer ${token}`
-      };
-      const res = await fetch(`${API_BASE}/${path}`, opts);
-      if (res.status === 401) return logout();
-      return res.json();
     }
+  }
 
-    let coursesList = [];
+  function closeBatchModal() {
+    document.getElementById('batchModal').style.display = 'none';
+  }
 
-    // Load courses into dropdown
-    async function loadCoursesList() {
-      const data = await authFetch('courses');
-      if (Array.isArray(data)) {
-        coursesList = data;
-        const sel = document.getElementById('batchCourseId');
-        sel.innerHTML = '<option value="">Select a course</option>';
-        data.forEach(c => sel.innerHTML += `<option value="${c._id}">${c.name}</option>`);
-      }
+  // ─── Toggle Price vs Bundles ────────────────────────────────────────────────
+  document.getElementById('batchType').addEventListener('change', togglePriceAndBundles);
+  function togglePriceAndBundles() {
+    const isTS = document.getElementById('batchType').value === 'test_series';
+    document.getElementById('priceField').style.display = isTS ? 'none' : 'block';
+    document.getElementById('batchPrice').required = !isTS;
+    document.getElementById('bundlesSection').style.display = isTS ? 'block' : 'none';
+  }
+
+  // ─── Bundle Inputs ──────────────────────────────────────────────────────────
+  function addBundle(data = { name: '', testCount: '', price: '' }) {
+    const cont = document.getElementById('bundlesContainer');
+    const div = document.createElement('div');
+    div.className = 'bundle-entry';
+    div.innerHTML = `
+      <button type="button" class="remove-bundle">&times;</button>
+      <div><label>Bundle Name</label><input type="text" name="bundleName" value="${data.name}" required/></div>
+      <div><label>Test Count</label><input type="number" name="bundleCount" min="1" value="${data.testCount}" required/></div>
+      <div><label>Bundle Price</label><input type="number" name="bundlePrice" min="0" value="${data.price}" required/></div>
+    `;
+    div.querySelector('.remove-bundle').onclick = () => div.remove();
+    cont.appendChild(div);
+  }
+
+  document.getElementById('batchForm').addEventListener('submit', async e => {
+    e.preventDefault();
+    const f = e.target;
+    const payload = {
+      courseId: f.courseId.value,
+      name: f.name.value,
+      type: f.type.value,
+      mentorId: f.mentorId.value,
+      duration: +f.duration.value,
+      startDate: f.startDate.value,
+      endDate: f.endDate.value
+    };
+    if (f.type.value !== 'test_series') {
+      payload.price = +f.price.value;
+    } else {
+      payload.bundles = Array.from(document.querySelectorAll('.bundle-entry')).map(be => ({
+        name: be.querySelector('[name="bundleName"]').value,
+        testCount: +be.querySelector('[name="bundleCount"]').value,
+        price: +be.querySelector('[name="bundlePrice"]').value
+      }));
     }
-
-    // Populate tables
-    async function reloadCourses() {
-      const data = await authFetch('courses');
-      if (!Array.isArray(data)) return;
-      const tbody = document.getElementById('coursesTable');
-      tbody.innerHTML = '';
-      data.forEach(c => {
-        tbody.innerHTML += `
-          <tr>
-            <td>${c.name}</td>
-            <td>${c.description||''}</td>
-            <td>${c.thumbnail?`<img src="${c.thumbnail}" width="40"/>`:''}</td>
-            <td>${new Date(c.createdAt).toLocaleDateString()}</td>
-            <td>
-              <button class="btn" onclick="openCourseModal('${c._id}')">Edit</button>
-              <button class="btn btn-danger" onclick="deleteCourse('${c._id}')">Delete</button>
-            </td>
-          </tr>`;
-      });
+    const body = JSON.stringify(payload);
+    if (f.id.value) {
+      await authFetch(`batches/${f.id.value}`, { method: 'PUT', body });
+    } else {
+      await authFetch('batches', { method: 'POST', body });
     }
+    closeBatchModal();
+    reloadBatches();
+  });
 
-    async function reloadBatches() {
-      const data = await authFetch('batches');
-      if (!Array.isArray(data)) return;
-      const tbody = document.getElementById('batchesTable');
-      tbody.innerHTML = '';
-      data.forEach(b => {
-        const course = coursesList.find(x => x._id === b.courseId);
-        tbody.innerHTML += `
-          <tr>
-            <td>${course?.name||b.courseId}</td>
-            <td>${b.name}</td>
-            <td>${b.type}</td>
-            <td>${b.type==='test_series'?'—': '₹'+b.price}</td>
-            <td>${b.mentorId}</td>
-            <td>${b.duration}</td>
-            <td>${new Date(b.startDate).toLocaleDateString()}</td>
-            <td>${new Date(b.endDate).toLocaleDateString()}</td>
-            <td>
-              <button class="btn" onclick="openBatchModal('${b._id}')">Edit</button>
-              <button class="btn btn-danger" onclick="deleteBatch('${b._id}')">Delete</button>
-            </td>
-          </tr>`;
-      });
-    }
+  // ─── Logout ─────────────────────────────────────────────────────────────────
+  function logout() {
+    localStorage.clear();
+    window.location.href = '/index.html';
+  }
 
-    // Delete handlers
-    async function deleteCourse(id){
-      if(!confirm('Delete this course?'))return;
-      await authFetch(`courses/${id}`,{method:'DELETE'});
-      await reloadCourses(); await loadCoursesList(); await reloadBatches();
-    }
+  // ─── Init ───────────────────────────────────────────────────────────────────
+  window.addEventListener('DOMContentLoaded', async () => {
+    await loadCoursesList();
+    reloadCourses();
+    reloadBatches();
+    togglePriceAndBundles();
+  });
+</script>
 
-    async function deleteBatch(id){
-      if(!confirm('Delete this batch?'))return;
-      await authFetch(`batches/${id}`,{method:'DELETE'});
-      reloadBatches();
-    }
-
-    // Course modal
-    function openCourseModal(id='') {
-      document.getElementById('courseModal').style.display='flex';
-      const f = document.getElementById('courseForm');
-      f.reset(); f.id.value = id;
-      document.getElementById('courseModalTitle').textContent = id ? 'Edit Course' : 'Add Course';
-      if (id) {
-        authFetch(`courses/${id}`).then(c => {
-          f.name.value = c.name;
-          f.description.value = c.description||'';
-          f.thumbnail.value = c.thumbnail||'';
-        });
-      }
-    }
-
-    function closeCourseModal() { document.getElementById('courseModal').style.display='none'; }
-
-    document.getElementById('courseForm').addEventListener('submit', async e=>{
-      e.preventDefault();
-      const f = e.target;
-      const body = JSON.stringify({
-        name: f.name.value,
-        description: f.description.value,
-        thumbnail: f.thumbnail.value
-      });
-      if (f.id.value) await authFetch(`courses/${f.id.value}`,{method:'PUT', body});
-      else await authFetch('courses',{method:'POST', body});
-      closeCourseModal();
-      await reloadCourses(); await loadCoursesList();
-    });
-
-    // Batch modal
-    function openBatchModal(id='') {
-      document.getElementById('batchModal').style.display='flex';
-      const f = document.getElementById('batchForm');
-      f.reset(); f.id.value = id;
-      document.getElementById('bundlesContainer').innerHTML = '';
-      togglePriceAndBundles();
-      document.getElementById('batchModalTitle').textContent = id ? 'Edit Batch':'Add Batch';
-      if (id) {
-        authFetch(`batches/${id}`).then(b => {
-          f.courseId.value = b.courseId;
-          f.name.value = b.name;
-          f.type.value = b.type;
-          f.price.value = b.price;
-          f.mentorId.value = b.mentorId;
-          f.duration.value = b.duration;
-          f.startDate.value = b.startDate.split('T')[0];
-          f.endDate.value = b.endDate.split('T')[0];
-          togglePriceAndBundles();
-          if (b.type==='test_series') {
-            (b.bundles||[]).forEach(addBundle);
-          }
-        });
-      }
-    }
-
-    function closeBatchModal(){
-      document.getElementById('batchModal').style.display='none';
-    }
-
-    // Toggle between global price vs. bundles
-    document.getElementById('batchType').addEventListener('change', togglePriceAndBundles);
-    function togglePriceAndBundles() {
-      const isTS = document.getElementById('batchType').value==='test_series';
-      document.getElementById('priceField').style.display = isTS ? 'none':'block';
-      document.getElementById('batchPrice').required = !isTS;
-      document.getElementById('bundlesSection').style.display = isTS ? 'block':'none';
-    }
-
-    // Bundle inputs
-    function addBundle(data={name:'',testCount:'',price:''}) {
-      const cont = document.getElementById('bundlesContainer');
-      const div = document.createElement('div');
-      div.className = 'bundle-entry';
-      div.innerHTML = `
-        <button type="button" class="remove-bundle">&times;</button>
-        <div><label>Bundle Name</label><input type="text" name="bundleName" value="${data.name}" required/></div>
-        <div><label>Test Count</label><input type="number" name="bundleCount" min="1" value="${data.testCount}" required/></div>
-        <div><label>Bundle Price</label><input type="number" name="bundlePrice" min="0" value="${data.price}" required/></div>
-      `;
-      div.querySelector('.remove-bundle').onclick = ()=>div.remove();
-      cont.appendChild(div);
-    }
-
-    document.getElementById('batchForm').addEventListener('submit', async e=>{
-      e.preventDefault();
-      const f = e.target;
-      const payload = {
-        courseId: f.courseId.value,
-        name: f.name.value,
-        type: f.type.value,
-        mentorId: f.mentorId.value,
-        duration: +f.duration.value,
-        startDate: f.startDate.value,
-        endDate: f.endDate.value
-      };
-      if (f.type.value !== 'test_series') {
-        payload.price = +f.price.value;
-      } else {
-        payload.bundles = Array.from(document.querySelectorAll('.bundle-entry')).map(be=>({
-          name: be.querySelector('[name="bundleName"]').value,
-          testCount: +be.querySelector('[name="bundleCount"]').value,
-          price: +be.querySelector('[name="bundlePrice"]').value
-        }));
-      }
-      const body = JSON.stringify(payload);
-      if (f.id.value) {
-        await authFetch(`batches/${f.id.value}`,{method:'PUT',body});
-      } else {
-        await authFetch('batches',{method:'POST',body});
-      }
-      closeBatchModal();
-      reloadBatches();
-    });
-
-    function logout() {
-      localStorage.clear();
-      window.location.href = '/index.html';
-    }
-
-    // Init
-    window.addEventListener('DOMContentLoaded', async ()=>{
-      await loadCoursesList();
-      reloadCourses();
-      reloadBatches();
-      togglePriceAndBundles();
-    });
-  </script>
 </body>
 </html>
