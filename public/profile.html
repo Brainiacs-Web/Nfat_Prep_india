@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8"/>
+  <title>Profile</title>
+</head>
+<body>
+  <h1>Your Profile</h1>
+  <img id="avatar" src="" width="100"/>
+  <input type="file" id="changePic"/>
+  <button onclick="uploadPic()">Upload</button>
+  <p><strong>Name:</strong> <span id="name"></span></p>
+  <p><strong>Email:</strong> <span id="email"></span></p>
+
+<script>
+  const token = localStorage.getItem('npi_token');
+
+  async function loadProfile(){
+    const res = await fetch('/api/admin/me',{
+      headers:{'Authorization':'Bearer '+token}
+    });
+    const me = await res.json();
+    document.getElementById('avatar').src = me.profilePic || '/default.png';
+    document.getElementById('name').textContent = me.fullName;
+    document.getElementById('email').textContent = me.emailID;
+  }
+
+  async function uploadPic(){
+    const file = document.getElementById('changePic').files[0];
+    const fd = new FormData(); fd.append('avatar', file);
+    await fetch('/api/admin/uploadAvatar', {
+      method:'POST',
+      body:fd,
+      headers:{ 'Authorization':'Bearer '+token }
+    });
+    loadProfile();
+  }
+
+  loadProfile();
+</script>
+</body>
+</html>

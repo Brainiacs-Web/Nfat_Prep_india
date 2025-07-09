@@ -1,0 +1,604 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+  <title>NPI Admin Portal</title>
+  <link rel="icon" href="https://ik.imagekit.io/y6yfjkmgh/WhatsApp-Image-2024-11-30-at-2.19.07-PM-removebg-preview.png" />
+  <style>
+    * { margin:0; padding:0; box-sizing:border-box; }
+    body { font-family:'Segoe UI',sans-serif; background:#f1f5f9; display:flex; min-height:100vh; }
+    
+    /* Hamburger Menu */
+    .hamburger {
+      display: none;
+      flex-direction: column;
+      cursor: pointer;
+      padding: 8px;
+      z-index: 1001;
+    }
+    .hamburger span {
+      width: 25px;
+      height: 3px;
+      background: #1e3a8a;
+      margin: 3px 0;
+      transition: 0.3s;
+      border-radius: 2px;
+    }
+    .hamburger.active span:nth-child(1) {
+      transform: rotate(-45deg) translate(-5px, 6px);
+    }
+    .hamburger.active span:nth-child(2) {
+      opacity: 0;
+    }
+    .hamburger.active span:nth-child(3) {
+      transform: rotate(45deg) translate(-5px, -6px);
+    }
+
+    /* Sidebar */
+    .sidebar { 
+      width:220px; 
+      background:#1e3a8a; 
+      color:#fff; 
+      display:flex; 
+      flex-direction:column; 
+      padding-top:20px;
+      transition: transform 0.3s ease;
+      z-index: 1000;
+    }
+    .sidebar h2 { text-align:center; margin-bottom:30px; font-size:1.25rem; }
+    .nav-item { padding:12px 20px; cursor:pointer; transition:background .2s; }
+    .nav-item:hover,.nav-item.active{background:#162774;}
+    
+    /* Overlay for mobile */
+    .sidebar-overlay {
+      display: none;
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0,0,0,0.5);
+      z-index: 999;
+    }
+
+    .main{flex:1;display:flex;flex-direction:column;}
+    .topbar{
+      height:60px;
+      background:#fff;
+      border-bottom:1px solid #e2e8f0;
+      display:flex;
+      justify-content:space-between;
+      align-items:center;
+      padding:0 20px;
+    }
+    .logo-section{display:flex;align-items:center;}
+    .logo{height:36px;margin-right:12px;}
+    .title{font-size:1.25rem;font-weight:600;color:#1e3a8a;}
+    .user-menu{display:flex;align-items:center;position:relative;cursor:pointer;}
+    .name{margin-right:12px;font-size:.95rem;color:#334155;}
+    .avatar{width:36px;height:36px;border-radius:50%;background:#cbd5e1;display:flex;align-items:center;justify-content:center;font-weight:600;color:#1e3a8a;}
+    .dropdown{display:none;position:absolute;right:0;top:60px;background:#fff;border:1px solid #e2e8f0;border-radius:6px;overflow:hidden;box-shadow:0 4px 6px rgba(0,0,0,0.1);}
+    .user-menu:hover .dropdown{display:block;}
+    .dropdown a{display:block;padding:10px 16px;font-size:.9rem;color:#334155;text-decoration:none;}
+    .dropdown a:hover{background:#f1f5f9;}
+    
+    .content{padding:20px;overflow-y:auto;flex:1;}
+    .card{background:#fff;border:1px solid #e2e8f0;border-radius:8px;padding:16px;margin-bottom:24px;box-shadow:0 2px 4px rgba(0,0,0,0.03);}
+    h3{margin-bottom:12px;color:#1e3a8a;}
+    
+    /* Responsive Tables */
+    .table-container {
+      overflow-x: auto;
+      margin-top: 12px;
+    }
+    table{width:100%;border-collapse:collapse;min-width:600px;}
+    th,td{padding:10px;border:1px solid #e2e8f0;text-align:left;font-size:.9rem;color:#334155;white-space:nowrap;}
+    th{background:#f1f5f9;}
+    
+    .btn{display:inline-block;padding:6px 12px;border-radius:4px;font-size:.85rem;cursor:pointer;background:#1e3a8a;color:#fff;border:none;transition:background .2s;margin:2px;}
+    .btn:hover{background:#1d4ed8;}
+    .btn-danger{background:#dc2626;}
+    .btn-danger:hover{background:#b91c1c;}
+    
+    .modal-backdrop{display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.5);align-items:center;justify-content:center;z-index:2000;padding:10px;}
+    .modal{background:#fff;max-width:600px;width:100%;max-height:90vh;padding:20px;border-radius:8px;position:relative;overflow-y:auto;}
+    .modal h3{margin-bottom:16px;color:#1e3a8a;}
+    .modal form div{margin-bottom:12px;}
+    .modal label{display:block;margin-bottom:4px;color:#475569;font-size:.9rem;}
+    .modal input,.modal select,.modal textarea{width:100%;padding:8px;border:1px solid #cbd5e1;border-radius:4px;font-size:.9rem;}
+    .modal-actions{text-align:right;margin-top:16px;}
+    .bundle-entry{border:1px solid #cbd5e1; padding:10px; border-radius:4px; margin-bottom:8px; position:relative;}
+    .remove-bundle{position:absolute; top:8px; right:8px; background:none; border:none; cursor:pointer; font-size:1.1rem; color:#dc2626;}
+    #bundlesSection h4{margin-bottom:8px;}
+
+    /* Mobile Styles */
+    @media (max-width: 768px) {
+      .hamburger {
+        display: flex;
+      }
+      
+      .sidebar {
+        position: fixed;
+        top: 0;
+        left: 0;
+        height: 100vh;
+        transform: translateX(-100%);
+      }
+      
+      .sidebar.active {
+        transform: translateX(0);
+      }
+      
+      .sidebar-overlay.active {
+        display: block;
+      }
+      
+      .main {
+        width: 100%;
+      }
+      
+      .topbar {
+        padding: 0 15px;
+      }
+      
+      .title {
+        font-size: 1rem;
+      }
+      
+      .name {
+        display: none;
+      }
+      
+      .content {
+        padding: 15px;
+      }
+      
+      .card {
+        padding: 12px;
+        margin-bottom: 16px;
+      }
+      
+      .modal {
+        margin: 10px;
+        padding: 15px;
+        max-height: calc(100vh - 20px);
+      }
+      
+      .modal-actions {
+        display: flex;
+        gap: 8px;
+        justify-content: stretch;
+      }
+      
+      .modal-actions .btn {
+        flex: 1;
+        margin: 0;
+      }
+      
+      th, td {
+        padding: 8px 6px;
+        font-size: 0.8rem;
+      }
+      
+      .btn {
+        padding: 4px 8px;
+        font-size: 0.75rem;
+      }
+    }
+
+    @media (max-width: 480px) {
+      .topbar {
+        padding: 0 10px;
+      }
+      
+      .logo {
+        height: 28px;
+      }
+      
+      .title {
+        font-size: 0.9rem;
+      }
+      
+      .content {
+        padding: 10px;
+      }
+      
+      .card {
+        padding: 10px;
+      }
+      
+      .modal {
+        padding: 12px;
+      }
+      
+      th, td {
+        padding: 6px 4px;
+        font-size: 0.75rem;
+      }
+      
+      .bundle-entry {
+        padding: 8px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <!-- Sidebar Overlay -->
+  <div class="sidebar-overlay" id="sidebarOverlay"></div>
+  
+  <aside class="sidebar" id="sidebar">
+    <h2>NPI Portal</h2>
+    <div class="nav-item active">Courses &amp; Batches</div>
+    <div class="nav-item">Role Approval</div>
+    <div class="nav-item">Manage Test Series</div>
+    <div class="nav-item">Platform Details</div>
+  </aside>
+  
+  <div class="main">
+    <header class="topbar">
+      <div class="logo-section">
+        <div class="hamburger" id="hamburger">
+          <span></span>
+          <span></span>
+          <span></span>
+        </div>
+        <img src="https://ik.imagekit.io/y6yfjkmgh/WhatsApp-Image-2024-11-30-at-2.19.07-PM-removebg-preview.png" class="logo" alt="Logo"/>
+        <div class="title">NPI Admin Portal</div>
+      </div>
+      <div class="user-menu">
+        <div class="name" id="userName">Loading…</div>
+        <div class="avatar" id="userAvatar">--</div>
+        <div class="dropdown">
+          <a href="#">View Profile</a>
+          <a href="#" onclick="logout()">Logout</a>
+        </div>
+      </div>
+    </header>
+    
+    <div class="content">
+      <div class="card">
+        <h3>Courses</h3>
+        <button class="btn" onclick="openCourseModal()">+ Add Course</button>
+        <div class="table-container">
+          <table>
+            <thead>
+              <tr><th>Name</th><th>Description</th><th>Thumbnail</th><th>Created</th><th>Actions</th></tr>
+            </thead>
+            <tbody id="coursesTable"></tbody>
+          </table>
+        </div>
+      </div>
+      
+      <div class="card">
+        <h3>Batches</h3>
+        <button class="btn" onclick="openBatchModal()">+ Add Batch</button>
+        <div class="table-container">
+          <table>
+            <thead>
+              <tr>
+                <th>Course</th><th>Name</th><th>Type</th><th>Price</th><th>Mentor ID</th><th>Duration</th><th>Start</th><th>End</th><th>Actions</th>
+              </tr>
+            </thead>
+            <tbody id="batchesTable"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Course Modal -->
+  <div class="modal-backdrop" id="courseModal">
+    <div class="modal">
+      <h3 id="courseModalTitle">Add Course</h3>
+      <form id="courseForm">
+        <div><label>Name</label><input type="text" name="name" required/></div>
+        <div><label>Description</label><textarea name="description"></textarea></div>
+        <div><label>Thumbnail URL</label><input type="text" name="thumbnail"/></div>
+        <div class="modal-actions">
+          <button type="button" class="btn" onclick="closeCourseModal()">Cancel</button>
+          <button type="submit" class="btn">Save</button>
+        </div>
+        <input type="hidden" name="id"/>
+      </form>
+    </div>
+  </div>
+
+  <!-- Batch Modal -->
+  <div class="modal-backdrop" id="batchModal">
+    <div class="modal">
+      <h3 id="batchModalTitle">Add Batch</h3>
+      <form id="batchForm">
+        <div><label>Course</label>
+          <select name="courseId" id="batchCourseId" required>
+            <option value="">Loading…</option>
+          </select>
+        </div>
+        <div><label>Name</label><input type="text" name="name" required/></div>
+        <div><label>Type</label>
+          <select name="type" id="batchType" required>
+            <option value="mentorship">Mentorship</option>
+            <option value="test_series">Test Series</option>
+            <option value="achievers">Achievers</option>
+            <option value="foundation">Foundation</option>
+          </select>
+        </div>
+        <!-- Global price, hidden/disabled for test_series -->
+        <div id="priceField">
+          <label>Price</label>
+          <input type="number" name="price" id="batchPrice" required/>
+        </div>
+        <div><label>Mentor ID</label><input type="text" name="mentorId" placeholder="MENTORXXXX" required/></div>
+        <div><label>Duration (mo.)</label><input type="number" name="duration" required/></div>
+        <div><label>Start Date</label><input type="date" name="startDate" required/></div>
+        <div><label>End Date</label><input type="date" name="endDate" required/></div>
+        <!-- Bundles (only for test_series) -->
+        <div id="bundlesSection" style="display:none; margin-top:16px;">
+          <h4>Bundles</h4>
+          <div id="bundlesContainer"></div>
+          <button type="button" class="btn" onclick="addBundle()">+ Add Bundle</button>
+        </div>
+        <div class="modal-actions">
+          <button type="button" class="btn" onclick="closeBatchModal()">Cancel</button>
+          <button type="submit" class="btn">Save</button>
+        </div>
+        <input type="hidden" name="id"/>
+      </form>
+    </div>
+  </div>
+
+  <script>
+    const API_BASE = 'http://localhost:3000/api';
+    const token = localStorage.getItem('npi_token');
+    const loginID = localStorage.getItem('LoginID');
+    if (!token || !loginID) window.location.href = '/index.html';
+
+    // Hamburger Menu Functionality
+    const hamburger = document.getElementById('hamburger');
+    const sidebar = document.getElementById('sidebar');
+    const sidebarOverlay = document.getElementById('sidebarOverlay');
+
+    function toggleSidebar() {
+      hamburger.classList.toggle('active');
+      sidebar.classList.toggle('active');
+      sidebarOverlay.classList.toggle('active');
+    }
+
+    hamburger.addEventListener('click', toggleSidebar);
+    sidebarOverlay.addEventListener('click', toggleSidebar);
+
+    // Close sidebar when clicking nav items on mobile
+    document.querySelectorAll('.nav-item').forEach(item => {
+      item.addEventListener('click', () => {
+        if (window.innerWidth <= 768) {
+          toggleSidebar();
+        }
+      });
+    });
+
+    // Close sidebar on window resize if desktop
+    window.addEventListener('resize', () => {
+      if (window.innerWidth > 768) {
+        hamburger.classList.remove('active');
+        sidebar.classList.remove('active');
+        sidebarOverlay.classList.remove('active');
+      }
+    });
+
+    // Show user
+    document.getElementById('userName').textContent = loginID;
+    document.getElementById('userAvatar').textContent = loginID.slice(0,2).toUpperCase();
+
+    async function authFetch(path, opts = {}) {
+      opts.headers = { ...(opts.headers||{}),
+        'Content-Type':'application/json',
+        'Authorization': `Bearer ${token}`
+      };
+      const res = await fetch(`${API_BASE}/${path}`, opts);
+      if (res.status === 401) return logout();
+      return res.json();
+    }
+
+    let coursesList = [];
+
+    // Load courses into dropdown
+    async function loadCoursesList() {
+      const data = await authFetch('courses');
+      if (Array.isArray(data)) {
+        coursesList = data;
+        const sel = document.getElementById('batchCourseId');
+        sel.innerHTML = '<option value="">Select a course</option>';
+        data.forEach(c => sel.innerHTML += `<option value="${c._id}">${c.name}</option>`);
+      }
+    }
+
+    // Populate tables
+    async function reloadCourses() {
+      const data = await authFetch('courses');
+      if (!Array.isArray(data)) return;
+      const tbody = document.getElementById('coursesTable');
+      tbody.innerHTML = '';
+      data.forEach(c => {
+        tbody.innerHTML += `
+          <tr>
+            <td>${c.name}</td>
+            <td>${c.description||''}</td>
+            <td>${c.thumbnail?`<img src="${c.thumbnail}" width="40"/>`:''}</td>
+            <td>${new Date(c.createdAt).toLocaleDateString()}</td>
+            <td>
+              <button class="btn" onclick="openCourseModal('${c._id}')">Edit</button>
+              <button class="btn btn-danger" onclick="deleteCourse('${c._id}')">Delete</button>
+            </td>
+          </tr>`;
+      });
+    }
+
+    async function reloadBatches() {
+      const data = await authFetch('batches');
+      if (!Array.isArray(data)) return;
+      const tbody = document.getElementById('batchesTable');
+      tbody.innerHTML = '';
+      data.forEach(b => {
+        const course = coursesList.find(x => x._id === b.courseId);
+        tbody.innerHTML += `
+          <tr>
+            <td>${course?.name||b.courseId}</td>
+            <td>${b.name}</td>
+            <td>${b.type}</td>
+            <td>${b.type==='test_series'?'—': '₹'+b.price}</td>
+            <td>${b.mentorId}</td>
+            <td>${b.duration}</td>
+            <td>${new Date(b.startDate).toLocaleDateString()}</td>
+            <td>${new Date(b.endDate).toLocaleDateString()}</td>
+            <td>
+              <button class="btn" onclick="openBatchModal('${b._id}')">Edit</button>
+              <button class="btn btn-danger" onclick="deleteBatch('${b._id}')">Delete</button>
+            </td>
+          </tr>`;
+      });
+    }
+
+    // Delete handlers
+    async function deleteCourse(id){
+      if(!confirm('Delete this course?'))return;
+      await authFetch(`courses/${id}`,{method:'DELETE'});
+      await reloadCourses(); await loadCoursesList(); await reloadBatches();
+    }
+
+    async function deleteBatch(id){
+      if(!confirm('Delete this batch?'))return;
+      await authFetch(`batches/${id}`,{method:'DELETE'});
+      reloadBatches();
+    }
+
+    // Course modal
+    function openCourseModal(id='') {
+      document.getElementById('courseModal').style.display='flex';
+      const f = document.getElementById('courseForm');
+      f.reset(); f.id.value = id;
+      document.getElementById('courseModalTitle').textContent = id ? 'Edit Course' : 'Add Course';
+      if (id) {
+        authFetch(`courses/${id}`).then(c => {
+          f.name.value = c.name;
+          f.description.value = c.description||'';
+          f.thumbnail.value = c.thumbnail||'';
+        });
+      }
+    }
+
+    function closeCourseModal() { document.getElementById('courseModal').style.display='none'; }
+
+    document.getElementById('courseForm').addEventListener('submit', async e=>{
+      e.preventDefault();
+      const f = e.target;
+      const body = JSON.stringify({
+        name: f.name.value,
+        description: f.description.value,
+        thumbnail: f.thumbnail.value
+      });
+      if (f.id.value) await authFetch(`courses/${f.id.value}`,{method:'PUT', body});
+      else await authFetch('courses',{method:'POST', body});
+      closeCourseModal();
+      await reloadCourses(); await loadCoursesList();
+    });
+
+    // Batch modal
+    function openBatchModal(id='') {
+      document.getElementById('batchModal').style.display='flex';
+      const f = document.getElementById('batchForm');
+      f.reset(); f.id.value = id;
+      document.getElementById('bundlesContainer').innerHTML = '';
+      togglePriceAndBundles();
+      document.getElementById('batchModalTitle').textContent = id ? 'Edit Batch':'Add Batch';
+      if (id) {
+        authFetch(`batches/${id}`).then(b => {
+          f.courseId.value = b.courseId;
+          f.name.value = b.name;
+          f.type.value = b.type;
+          f.price.value = b.price;
+          f.mentorId.value = b.mentorId;
+          f.duration.value = b.duration;
+          f.startDate.value = b.startDate.split('T')[0];
+          f.endDate.value = b.endDate.split('T')[0];
+          togglePriceAndBundles();
+          if (b.type==='test_series') {
+            (b.bundles||[]).forEach(addBundle);
+          }
+        });
+      }
+    }
+
+    function closeBatchModal(){
+      document.getElementById('batchModal').style.display='none';
+    }
+
+    // Toggle between global price vs. bundles
+    document.getElementById('batchType').addEventListener('change', togglePriceAndBundles);
+    function togglePriceAndBundles() {
+      const isTS = document.getElementById('batchType').value==='test_series';
+      document.getElementById('priceField').style.display = isTS ? 'none':'block';
+      document.getElementById('batchPrice').required = !isTS;
+      document.getElementById('bundlesSection').style.display = isTS ? 'block':'none';
+    }
+
+    // Bundle inputs
+    function addBundle(data={name:'',testCount:'',price:''}) {
+      const cont = document.getElementById('bundlesContainer');
+      const div = document.createElement('div');
+      div.className = 'bundle-entry';
+      div.innerHTML = `
+        <button type="button" class="remove-bundle">&times;</button>
+        <div><label>Bundle Name</label><input type="text" name="bundleName" value="${data.name}" required/></div>
+        <div><label>Test Count</label><input type="number" name="bundleCount" min="1" value="${data.testCount}" required/></div>
+        <div><label>Bundle Price</label><input type="number" name="bundlePrice" min="0" value="${data.price}" required/></div>
+      `;
+      div.querySelector('.remove-bundle').onclick = ()=>div.remove();
+      cont.appendChild(div);
+    }
+
+    document.getElementById('batchForm').addEventListener('submit', async e=>{
+      e.preventDefault();
+      const f = e.target;
+      const payload = {
+        courseId: f.courseId.value,
+        name: f.name.value,
+        type: f.type.value,
+        mentorId: f.mentorId.value,
+        duration: +f.duration.value,
+        startDate: f.startDate.value,
+        endDate: f.endDate.value
+      };
+      if (f.type.value !== 'test_series') {
+        payload.price = +f.price.value;
+      } else {
+        payload.bundles = Array.from(document.querySelectorAll('.bundle-entry')).map(be=>({
+          name: be.querySelector('[name="bundleName"]').value,
+          testCount: +be.querySelector('[name="bundleCount"]').value,
+          price: +be.querySelector('[name="bundlePrice"]').value
+        }));
+      }
+      const body = JSON.stringify(payload);
+      if (f.id.value) {
+        await authFetch(`batches/${f.id.value}`,{method:'PUT',body});
+      } else {
+        await authFetch('batches',{method:'POST',body});
+      }
+      closeBatchModal();
+      reloadBatches();
+    });
+
+    function logout() {
+      localStorage.clear();
+      window.location.href = '/index.html';
+    }
+
+    // Init
+    window.addEventListener('DOMContentLoaded', async ()=>{
+      await loadCoursesList();
+      reloadCourses();
+      reloadBatches();
+      togglePriceAndBundles();
+    });
+  </script>
+</body>
+</html>

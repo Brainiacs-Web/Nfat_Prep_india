@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>NPI Request Status</title>
+  <style>
+    body { font-family: sans-serif; background:#f5f5f5; text-align:center; padding:50px;}
+    .card { background:#fff; display:inline-block; padding:30px; border-radius:8px; box-shadow:0 2px 8px rgba(0,0,0,0.1);}
+    h1 { margin-bottom:20px; }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <h1>Request Status</h1>
+    <p><strong>Full Name:</strong> <span id="fullName"></span></p>
+    <p><strong>Login ID:</strong> <span id="loginID"></span></p>
+    <p><strong>Role:</strong> <span id="role"></span></p>
+    <p><strong>Approval Status:</strong> <span id="status"></span></p>
+    <p id="loginMsg"></p>
+  </div>
+
+  <script>
+    const params = new URLSearchParams(window.location.search);
+    const loginID = params.get('loginID');
+
+    if (!loginID) {
+      document.body.innerHTML = '<p>No loginID provided in URL.</p>';
+    } else {
+      fetch(`/api/admin/status/${loginID}`)
+        .then(res => res.json())
+        .then(data => {
+          if (data.error) {
+            document.body.innerHTML = `<p>${data.error}</p>`;
+          } else {
+            document.getElementById('fullName').textContent = data.fullName;
+            document.getElementById('loginID').textContent = data.loginID;
+            document.getElementById('role').textContent = data.role;
+            document.getElementById('status').textContent = data.approvalStatus;
+
+            if (data.approvalStatus === 'Approved') {
+              document.getElementById('loginMsg').innerHTML = `
+                <p style="color:green;">Your request is approved! <a href="/index.html">Login here</a></p>`;
+            } else {
+              document.getElementById('loginMsg').innerHTML = `
+                <p style="color:orange;">Your request is still pending approval. Please check back later.</p>`;
+            }
+          }
+        })
+        .catch(err => {
+          console.error(err);
+          document.body.innerHTML = '<p>Failed to load status.</p>';
+        });
+    }
+  </script>
+</body>
+</html>
